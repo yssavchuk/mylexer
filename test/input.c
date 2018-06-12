@@ -5,5 +5,34 @@
 "abc
 "
 
+
+
+// Input1
+a->field
+bad>-filed
+
+// Input2
+"abc
+a"
+
+// Input3
 "abc\
-aaa"
+cba"
+
+// Input4
+&a
+&& a
+|| b
+|b
+
+
+// Input5
+/**/
+/* aa*bb*c
+**/
+/**/
+
+// Input6
+"\
+"
+"

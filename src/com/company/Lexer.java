@@ -198,6 +198,11 @@ public class Lexer {
             setStartState();
             return true;
         }
+        else if (ch == '>' && Character.toString('-').equals(buffer)){
+            tokens.add(new Token(TokenType.OPERATOR, buffer + Character.toString(ch)));
+            setStartState();
+            return true;
+        }
         else if (ch >= '0' && ch <= '9') {
             curState = State.NUMBER;
             return true;
