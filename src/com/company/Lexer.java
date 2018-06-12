@@ -23,6 +23,8 @@ public class Lexer {
             }
 
             br.close();
+            fromFinalState();
+            System.out.println("Final state is " + curState);
             fileEnded = true;
 
         } catch (IOException e) {
@@ -47,6 +49,10 @@ public class Lexer {
                     next = fromDot(ch);break;
                 case IDENTIFIER:
                     next = fromIdentifier(ch);break;
+                case ERROR:
+                    next = fromError(ch);break;
+                case PRE_NUMBER_OPERATOR:
+                    next = fromPreNumber(ch); break;
             }
         }
 
@@ -59,11 +65,28 @@ public class Lexer {
         if (ch >= '0' && ch <= '9') {
             curState = State.NUMBER;
         }
-        else if ( ch == '<' || ch == '>' || ch == '=' || ch == '%' || ch == '!' || ch == '-' || ch == '+'){
+        else if ( ch == '<' || ch == '>' || ch == '=' || ch == '%' || ch == '!' ){
             curState = State.PRE_EQUAL_OPERATOR;
         }
-        else if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_')
+        else if ( ch == '-' || ch == '+'){
+            curState = State.PRE_NUMBER_OPERATOR;
+        }
+        else if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_') {
             curState = State.IDENTIFIER;
+        }
+        else if (ch == '?' || ch == ':') {
+            tokens.add(new Token(TokenType.OPERATOR, Character.toString(ch)));
+            setStartState();
+            return true;
+        }
+        else{
+            if(Language.isPunctuation(ch))
+                tokens.add(new Token(TokenType.PUNCTUATION, Character.toString(ch)));
+            else
+                tokens.add(new Token(TokenType.ERROR, Character.toString(ch)));
+            setStartState();
+            return true;
+        }
         return true;
     }
 
@@ -136,6 +159,54 @@ public class Lexer {
     }
 
 
+    public boolean fromError(Character ch){
+        if (Language.isPunctuation(ch)) {
+            tokens.add(new Token(TokenType.ERROR, buffer));
+            setStartState();
+            return false;
+        }
+        else
+            return true;
+    }
+
+    public boolean fromPreNumber(Character ch){
+        if (ch == '=' || ch == '-' || ch == '+') {
+            tokens.add(new Token(TokenType.OPERATOR, buffer + Character.toString(ch)));
+            setStartState();
+            return true;
+        }
+        else if (ch >= '0' && ch <= '9') {
+            curState = State.NUMBER;
+            return true;
+        } else {
+            tokens.add(new Token(TokenType.OPERATOR, buffer));
+            setStartState();
+            return false;
+        }
+    }
+
+    public void fromFinalState(){
+        switch (curState){
+            case START:
+                return;
+            case NUMBER_DECIMAL:
+                afterNumber('\n');break;
+            case NUMBER_INTEGER:
+                afterNumber('\n');break;
+            case NUMBER:
+                afterNumber('\n');break;
+            case IDENTIFIER:
+                fromIdentifier('\n');break;
+            case ERROR:
+                fromError('\n');break;
+            case DOT:
+                fromDot('\n');break;
+            case PRE_EQUAL_OPERATOR:
+                fromPreEqualOperator('\n');break;
+            case PRE_NUMBER_OPERATOR:
+                fromPreNumber('\n');break;
+        }
+    }
     ////////////////////////////////////////////////////////////////////////
     public boolean afterNumber(Character ch){
         if(Language.isPunctuation(ch)) {

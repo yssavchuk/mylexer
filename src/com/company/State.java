@@ -5,6 +5,7 @@ public enum State {
     START,
     ERROR,
     PRE_EQUAL_OPERATOR, //= % ! + - < >
+    PRE_NUMBER_OPERATOR, // - +
     DOT, //.
     IDENTIFIER
 }
