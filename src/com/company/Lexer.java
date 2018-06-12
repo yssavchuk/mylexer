@@ -53,6 +53,22 @@ public class Lexer {
                     next = fromError(ch);break;
                 case PRE_NUMBER_OPERATOR:
                     next = fromPreNumber(ch); break;
+                case COMMENT:
+                    next = fromComment(ch); break;
+                case MULTILINE_COMMENT:
+                    next = fromMultilineComment(ch);break;
+                case SINGLELINE_COMMENT:
+                    next = fromSinglelineComment(ch);break;
+                case MULTILINE_COMMENT_STAR:
+                    next = fromMultilineCommentStar(ch);break;
+                case OPER_FIRST_SYM:
+                    next = fromOperFirstSym(ch);break;
+                case STRING_LITERAL:
+                    next = fromStringLiteral(ch);break;
+                case STRING_LITERAL_SYMBOL:
+                    next = fromStringLiteralSymbol(ch);break;
+                case STRING_LITERAL_BODY:
+                    next = fromStringLiteralBody(ch);break;
             }
         }
 
@@ -71,13 +87,21 @@ public class Lexer {
         else if ( ch == '-' || ch == '+'){
             curState = State.PRE_NUMBER_OPERATOR;
         }
+        else if ( ch == '&' ||  ch == '|' ){
+            curState = State.OPER_FIRST_SYM;
+        }
         else if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_') {
             curState = State.IDENTIFIER;
         }
+        else if (ch == '\"')
+            curState = State.STRING_LITERAL;
         else if (ch == '?' || ch == ':') {
             tokens.add(new Token(TokenType.OPERATOR, Character.toString(ch)));
             setStartState();
             return true;
+        }
+        else if (ch == '/'){
+            curState = State.COMMENT;
         }
         else{
             if(Language.isPunctuation(ch))
@@ -85,7 +109,6 @@ public class Lexer {
             else
                 tokens.add(new Token(TokenType.ERROR, Character.toString(ch)));
             setStartState();
-            return true;
         }
         return true;
     }
@@ -185,13 +208,123 @@ public class Lexer {
         }
     }
 
+    public boolean fromComment(Character ch){
+        if (ch == '/') {
+            curState = State.SINGLELINE_COMMENT;
+            return true;
+        }
+        else if (ch == '=') {
+            tokens.add(new Token(TokenType.OPERATOR, buffer + Character.toString(ch)));
+            setStartState();
+            return true;
+        }
+        else if (ch == '*') {
+            curState = State.MULTILINE_COMMENT;
+            return true;
+        }
+        else {
+            tokens.add(new Token(TokenType.OPERATOR, buffer));
+            setStartState();
+            return false;
+        }
+    }
+
+    public boolean fromMultilineComment(Character ch){
+        if (ch == '*') {
+            curState = State.MULTILINE_COMMENT_STAR;
+        }
+        return true;
+    }
+
+    public boolean fromSinglelineComment(Character ch){
+        if (ch == '\r' || ch == '\n') {
+            tokens.add(new Token(TokenType.COMMENT, buffer));
+            setStartState();
+            return false;
+        }
+        else
+            return true;
+    }
+
+    public boolean fromMultilineCommentStar(Character ch){
+        if (ch == '/') {
+            tokens.add(new Token(TokenType.COMMENT, buffer + Character.toString(ch)));
+            setStartState();
+            return true;
+        }
+        else if(ch != '*'){
+            curState = State.MULTILINE_COMMENT;
+        }
+        return true;
+    }
+
+    public boolean fromOperFirstSym(Character ch){
+        if (ch == '=' || Character.toString(ch).equals(buffer)) {
+            tokens.add(new Token(TokenType.OPERATOR, buffer + Character.toString(ch)));
+            setStartState();
+            return true;
+        }
+        else {
+            tokens.add(new Token(TokenType.OPERATOR, buffer));
+            setStartState();
+            return false;
+        }
+    }
+
+    public boolean fromStringLiteral(Character ch){
+        if (ch == '\"'){
+            tokens.add(new Token(TokenType.LITERAL, buffer + Character.toString(ch)));
+            setStartState();
+            return true;
+        }
+        else if (ch == '\n') {
+            tokens.add(new Token(TokenType.ERROR, buffer));
+            setStartState();
+            return false;
+        } else if (ch == '\\') {
+            curState = State.STRING_LITERAL_SYMBOL;
+             return true;
+        } else {
+            curState = State.STRING_LITERAL_BODY;
+            return true;
+        }
+    }
+
+    public boolean fromStringLiteralSymbol(Character ch){
+        if (ch == 'n' || ch == 't' || ch == '\\' || ch == '\'' || ch == '\"' || ch == '\n' || ch == '\r') {
+            curState = State.STRING_LITERAL_BODY;
+            return true;
+        }
+        else {
+            curState = State.ERROR;
+            return true;
+        }
+    }
+
+    public boolean fromStringLiteralBody(Character ch){
+        if (ch == '\r' || ch == '\n') {
+            tokens.add(new Token(TokenType.ERROR, buffer));
+            setStartState();
+            return false;
+        } else if (ch == '\\') {
+            curState = State.STRING_LITERAL_SYMBOL;
+            return true;
+        } else if (ch == '\"') {
+            tokens.add(new Token(TokenType.LITERAL, buffer + Character.toString(ch)));
+            setStartState();
+            return true;
+        } else if (fileEnded) {
+            tokens.add(new Token(TokenType.ERROR, buffer));
+            return true;
+        } else
+            return true;
+    }
+
     public void fromFinalState(){
         switch (curState){
             case START:
                 return;
             case NUMBER_DECIMAL:
-                afterNumber('\n');break;
-            case NUMBER_INTEGER:
                 afterNumber('\n');break;
             case NUMBER:
                 afterNumber('\n');break;
@@ -205,6 +338,23 @@ public class Lexer {
                 fromPreEqualOperator('\n');break;
             case PRE_NUMBER_OPERATOR:
                 fromPreNumber('\n');break;
+            case COMMENT:
+                fromComment('\n');break;
+            case SINGLELINE_COMMENT:
+                fromSinglelineComment('\n');break;
+            case MULTILINE_COMMENT:
+                tokens.add(new Token(TokenType.ERROR, "Unclosed comment"));break;
+            case MULTILINE_COMMENT_STAR:
+                tokens.add(new Token(TokenType.ERROR, "Unclosed comment"));break;
+            case OPER_FIRST_SYM:
+                fromOperFirstSym('\n');break;
+            case STRING_LITERAL_SYMBOL:
+                tokens.add(new Token(TokenType.ERROR, "Unclosed string literal"));break;
+            case STRING_LITERAL_BODY:
+                tokens.add(new Token(TokenType.ERROR, "Unclosed string literal"));break;
+            case STRING_LITERAL:
+                tokens.add(new Token(TokenType.ERROR, "Unclosed string literal"));break;
+
         }
     }
     ////////////////////////////////////////////////////////////////////////
